@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/zodimo/go-mealy"
+	"github.com/zodimo/go-mealy/mealy"
 )
 
 // Define the possible states of our machine.
