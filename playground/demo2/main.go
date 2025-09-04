@@ -41,7 +41,11 @@ func main() {
 		FromState: StateOdd,
 		ToState:   StateEven,
 	})
-	machine := builder.Build(StateEven) // we pass the initial
+	builder.SetInitialState(StateEven)
+	machine, err := builder.Build() // we pass the initial
+	if err != nil {
+		panic(err)
+	}
 
 	mealy.WriteMermaidToMarkdownFile(machine, "mealy_diagram.md")
 	fmt.Printf("Initial state: %v\n", machine.CurrentState())

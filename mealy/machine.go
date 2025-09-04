@@ -120,19 +120,36 @@ func NewContinuation(m Machine) Continuation {
 	return continuation{machine: m}
 }
 
-func NewMachine(name string, initialState MachineState, transitions []Transition) Machine {
+func NewMachine(name string, initialState MachineState, transitions []Transition) (Machine, error) {
+	if name == "" {
+		return nil, fmt.Errorf("machine name cannot be empty")
+	}
+
+	if string(initialState) == "" {
+		return nil, fmt.Errorf("initial state cannot be empty")
+	}
+
+	if len(transitions) == 0 {
+		return nil, fmt.Errorf("transitions cannot be empty")
+	}
+	behavior := buildBehavior(transitions)
+
+	if _, ok := behavior[initialState]; !ok {
+		return nil, fmt.Errorf("initial state %s not found in behavior", initialState)
+	}
 	return &machine{
 		name:         name,
 		currentState: initialState,
 		initialState: initialState,
-		behavior:     buildBehavior(transitions),
-	}
+		behavior:     behavior,
+	}, nil
 }
 
 // Machine builder
 type MachineBuilder struct {
-	name        string
-	transitions []Transition
+	name         string
+	initialState MachineState
+	transitions  []Transition
 }
 
 func NewMachineBuilder(name string) *MachineBuilder {
@@ -145,8 +162,13 @@ func (mb *MachineBuilder) AddTransition(t Transition) *MachineBuilder {
 	return mb
 }
 
-func (mb *MachineBuilder) Build(initialState MachineState) Machine {
-	return NewMachine(mb.name, initialState, mb.transitions)
+func (mb *MachineBuilder) SetInitialState(initialState MachineState) *MachineBuilder {
+	mb.initialState = initialState
+	return mb
+}
+
+func (mb *MachineBuilder) Build() (Machine, error) {
+	return NewMachine(mb.name, mb.initialState, mb.transitions)
 }
 
 type Behavior map[MachineState]map[Action]Transition
