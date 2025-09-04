@@ -14,7 +14,8 @@ type Machine interface {
 	Step(input Action) (output Continuation, err error)
 	StepUnsafe(input Action) Continuation
 	CanStep(input Action) bool
-	ToMermaid(title string) string
+	ToMermaid() string
+	GetName() string
 }
 
 // MealyMachine represents a Mealy machine with states, transitions, and outputs.
@@ -58,6 +59,7 @@ var ErrNoTransition = fmt.Errorf("no valid transition found")
 var _ Machine = (*machine)(nil)
 
 type machine struct {
+	name         string
 	currentState MachineState
 	behavior     Behavior
 	initialState MachineState
@@ -103,6 +105,9 @@ func (m *machine) CurrentState() MachineState {
 func (m *machine) GetMachine() Machine {
 	return m
 }
+func (m *machine) GetName() string {
+	return m.name
+}
 
 func (c continuation) CurrentState() MachineState {
 	return c.machine.(WithCurrentState).CurrentState()
@@ -115,8 +120,9 @@ func NewContinuation(m Machine) Continuation {
 	return continuation{machine: m}
 }
 
-func NewMachine(initialState MachineState, transitions []Transition) Machine {
+func NewMachine(name string, initialState MachineState, transitions []Transition) Machine {
 	return &machine{
+		name:         name,
 		currentState: initialState,
 		initialState: initialState,
 		behavior:     buildBehavior(transitions),
@@ -125,11 +131,14 @@ func NewMachine(initialState MachineState, transitions []Transition) Machine {
 
 // Machine builder
 type MachineBuilder struct {
+	name        string
 	transitions []Transition
 }
 
-func NewMachineBuilder() *MachineBuilder {
-	return &MachineBuilder{}
+func NewMachineBuilder(name string) *MachineBuilder {
+	return &MachineBuilder{
+		name: name,
+	}
 }
 func (mb *MachineBuilder) AddTransition(t Transition) *MachineBuilder {
 	mb.transitions = append(mb.transitions, t)
@@ -137,7 +146,7 @@ func (mb *MachineBuilder) AddTransition(t Transition) *MachineBuilder {
 }
 
 func (mb *MachineBuilder) Build(initialState MachineState) Machine {
-	return NewMachine(initialState, mb.transitions)
+	return NewMachine(mb.name, initialState, mb.transitions)
 }
 
 type Behavior map[MachineState]map[Action]Transition
@@ -153,9 +162,9 @@ func buildBehavior(transitions []Transition) Behavior {
 	return behavior
 }
 
-func (m *machine) ToMermaid(title string) string {
+func (m *machine) ToMermaid() string {
 
-	titleString := fmt.Sprintf("---\ntitle: %s\n---\n", title)
+	titleString := fmt.Sprintf("---\ntitle: %s\n---\n", m.GetName())
 
 	result := fmt.Sprintf("%s stateDiagram-v2\n", titleString)
 
@@ -169,8 +178,8 @@ func (m *machine) ToMermaid(title string) string {
 	return result
 }
 
-func WriteMermaidToMarkdownFile(m Machine, title, filename string) error {
-	content := m.(*machine).ToMermaid(title)
+func WriteMermaidToMarkdownFile(m Machine, filename string) error {
+	content := m.(*machine).ToMermaid()
 	markdown := fmt.Sprintf("```mermaid\n%s\n```", content)
 	return writeToFile(filename, markdown)
 }
