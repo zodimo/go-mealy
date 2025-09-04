@@ -7,12 +7,13 @@ import (
 
 type MachineState string
 type Action string
+type Output string
 
 type Machine interface {
 	Continuation
 	Reset()
-	Step(input Action) (output Continuation, err error)
-	StepUnsafe(input Action) Continuation
+	Step(input Action) (output Output, continuation Continuation, err error)
+	StepUnsafe(input Action) (output Output, continuation Continuation)
 	CanStep(input Action) bool
 	ToMermaid() string
 	GetName() string
@@ -29,7 +30,6 @@ type WithMachine interface {
 	GetMachine() Machine
 }
 
-// or Tuple of both
 type Continuation interface {
 	WithCurrentState
 	WithMachine
@@ -40,14 +40,27 @@ type Transition struct {
 	Action    Action
 	FromState MachineState
 	ToState   MachineState
+	Output    Output
+}
+
+func (t Transition) Validate() error {
+	if t.Action == "" {
+		return fmt.Errorf("action cannot be empty")
+	}
+	if t.FromState == "" {
+		return fmt.Errorf("from state cannot be empty")
+	}
+	if t.ToState == "" {
+		return fmt.Errorf("to state cannot be empty")
+	}
+	if t.Output == "" {
+		return fmt.Errorf("output cannot be empty")
+	}
+	return nil
 }
 
 func (t Transition) CanStep(action Action, fromState MachineState) bool {
 	return t.Action == action && t.FromState == fromState
-}
-
-func (t Transition) Step() MachineState {
-	return t.ToState
 }
 
 type continuation struct {
@@ -69,22 +82,22 @@ func (m *machine) Reset() {
 	m.currentState = m.initialState
 }
 
-func (m *machine) Step(input Action) (output Continuation, err error) {
+func (m *machine) Step(input Action) (output Output, continuation Continuation, err error) {
 	if transitions, ok := m.behavior[m.currentState]; ok {
 		if t, ok := transitions[input]; ok {
 
-			m.currentState = t.Step()
-			return NewContinuation(m), nil
+			m.currentState = t.ToState
+			return t.Output, NewContinuation(m), nil
 		}
 	}
-	return nil, ErrNoTransition
+	return "", nil, ErrNoTransition
 }
-func (m *machine) StepUnsafe(input Action) Continuation {
+func (m *machine) StepUnsafe(input Action) (output Output, continuation Continuation) {
 	if transitions, ok := m.behavior[m.currentState]; ok {
 		if t, ok := transitions[input]; ok {
 
-			m.currentState = t.Step()
-			return NewContinuation(m)
+			m.currentState = t.ToState
+			return t.Output, NewContinuation(m)
 		}
 	}
 	panic(ErrNoTransition)
@@ -107,6 +120,9 @@ func (m *machine) GetMachine() Machine {
 }
 func (m *machine) GetName() string {
 	return m.name
+}
+func (m *machine) GetOutput() Output {
+	return Output(m.currentState)
 }
 
 func (c continuation) CurrentState() MachineState {
@@ -132,7 +148,10 @@ func NewMachine(name string, initialState MachineState, transitions []Transition
 	if len(transitions) == 0 {
 		return nil, fmt.Errorf("transitions cannot be empty")
 	}
-	behavior := buildBehavior(transitions)
+	behavior, err := buildBehavior(transitions)
+	if err != nil {
+		return nil, err
+	}
 
 	if _, ok := behavior[initialState]; !ok {
 		return nil, fmt.Errorf("initial state %s not found in behavior", initialState)
@@ -173,15 +192,24 @@ func (mb *MachineBuilder) Build() (Machine, error) {
 
 type Behavior map[MachineState]map[Action]Transition
 
-func buildBehavior(transitions []Transition) Behavior {
+func buildBehavior(transitions []Transition) (Behavior, error) {
 	behavior := make(Behavior)
 	for _, t := range transitions {
+		if err := t.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid transition: %w", err)
+		}
+		// check for duplicate transitions
+		if _, ok := behavior[t.FromState]; ok {
+			if _, ok := behavior[t.FromState][t.Action]; ok {
+				return nil, fmt.Errorf("duplicate transition for action %s from state %s", t.Action, t.FromState)
+			}
+		}
 		if behavior[t.FromState] == nil {
 			behavior[t.FromState] = make(map[Action]Transition)
 		}
 		behavior[t.FromState][t.Action] = t
 	}
-	return behavior
+	return behavior, nil
 }
 
 func (m *machine) ToMermaid() string {

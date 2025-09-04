@@ -14,6 +14,11 @@ const (
 )
 
 const (
+	OutputEven mealy.Output = "even"
+	OutputOdd  mealy.Output = "odd"
+)
+
+const (
 	Input0 mealy.Action = "0" // Represents a '0' input.
 	Input1 mealy.Action = "1" // Represents a '1' input.
 )
@@ -25,22 +30,26 @@ func main() {
 		Action:    Input0,
 		FromState: StateEven,
 		ToState:   StateEven,
+		Output:    OutputEven,
 	})
 	builder.AddTransition(mealy.Transition{
 		Action:    Input0,
 		FromState: StateOdd,
 		ToState:   StateOdd,
+		Output:    OutputOdd,
 	})
 
 	builder.AddTransition(mealy.Transition{
 		Action:    Input1,
 		FromState: StateEven,
 		ToState:   StateOdd,
+		Output:    OutputOdd,
 	})
 	builder.AddTransition(mealy.Transition{
 		Action:    Input1,
 		FromState: StateOdd,
 		ToState:   StateEven,
+		Output:    OutputEven,
 	})
 	builder.SetInitialState(StateEven)
 	machine, err := builder.Build()
@@ -58,11 +67,9 @@ func main() {
 	fmt.Println("Processing inputs:", inputs)
 	continuation := mealy.NewContinuation(machine)
 	for _, input := range inputs {
-		currentState := continuation.CurrentState()
 		if continuation.GetMachine().CanStep(input) {
-			continuation = continuation.GetMachine().StepUnsafe(input)
-
-			fmt.Printf("  Input: %s -> Current State: %v, New State: %v\n", input, currentState, continuation.CurrentState())
+			output, continuation := continuation.GetMachine().StepUnsafe(input)
+			fmt.Printf("  Input: %s -> New State: %v, Output: %v\n", input, continuation.CurrentState(), output)
 		} else {
 			panic("Cannot step with input " + string(input))
 		}
