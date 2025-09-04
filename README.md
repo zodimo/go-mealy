@@ -1,12 +1,10 @@
 # Mealy statemachine
 
 
-
 # Define the machine
-- events
+- actions
 - states
 - transitions
 
-# ContinueAs
-
-event + state = (next state , machine), error
+# Usage
+see demo2
