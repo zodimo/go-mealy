@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"go-mealy"
+
+	"github.com/zodimo/go-mealy"
 )
 
 // Define the possible states of our machine.
