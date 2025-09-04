@@ -43,6 +43,7 @@ func main() {
 	})
 	machine := builder.Build(StateEven) // we pass the initial
 
+	mealy.WriteMermaidToMarkdownFile(machine, "mealy_diagram.md")
 	fmt.Printf("Initial state: %v\n", machine.CurrentState())
 
 	// Simulate a sequence of inputs.

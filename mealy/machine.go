@@ -1,6 +1,9 @@
 package mealy
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 type MachineState string
 type Action string
@@ -11,6 +14,7 @@ type Machine interface {
 	Step(input Action) (output Continuation, err error)
 	StepUnsafe(input Action) Continuation
 	CanStep(input Action) bool
+	ToMermaid() string
 }
 
 // MealyMachine represents a Mealy machine with states, transitions, and outputs.
@@ -147,4 +151,25 @@ func buildBehavior(transitions []Transition) Behavior {
 		behavior[t.FromState][t.Action] = t
 	}
 	return behavior
+}
+
+func (m *machine) ToMermaid() string {
+	result := "stateDiagram-v2\n"
+	// Add states and transitions
+	for fromState, actions := range m.behavior {
+		for action, transition := range actions {
+			result += fmt.Sprintf("    %s --> %s : %s\n", fromState, transition.ToState, action)
+		}
+	}
+	return result
+}
+
+func WriteMermaidToMarkdownFile(m Machine, filename string) error {
+	content := m.(*machine).ToMermaid()
+	markdown := fmt.Sprintf("```mermaid\n%s\n```", content)
+	return writeToFile(filename, markdown)
+}
+
+func writeToFile(filename, content string) error {
+	return os.WriteFile(filename, []byte(content), 0644)
 }
