@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"go-mealy/mealy"
+	"go-mealy"
 )
 
 // Define the possible states of our machine.
@@ -42,7 +42,7 @@ func main() {
 		ToState:   StateEven,
 	})
 	builder.SetInitialState(StateEven)
-	machine, err := builder.Build() // we pass the initial
+	machine, err := builder.Build()
 	if err != nil {
 		panic(err)
 	}
