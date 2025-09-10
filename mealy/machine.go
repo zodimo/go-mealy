@@ -90,7 +90,7 @@ func (m *machine) Step(input Action) (output Output, continuation Continuation, 
 			return t.Output, NewContinuation(m), nil
 		}
 	}
-	return "", nil, ErrNoTransition
+	return "", m, ErrNoTransition
 }
 func (m *machine) StepUnsafe(input Action) (output Output, continuation Continuation) {
 	if transitions, ok := m.behavior[m.currentState]; ok {
