@@ -3,11 +3,33 @@ package mealy
 import (
 	"fmt"
 	"os"
+	"sync"
 )
 
 type MachineState string
 type Action string
 type Output string
+
+type MachineTransitionEvent struct {
+	Action    Action
+	FromState MachineState
+	ToState   MachineState
+	Output    Output
+}
+
+type MachineObserver interface {
+	//action, state , new state output
+	OnTransition(event MachineTransitionEvent)
+}
+
+var _ MachineObserver = (*noopObserver)(nil)
+
+type noopObserver struct {
+}
+
+func (o *noopObserver) OnTransition(event MachineTransitionEvent) {
+	// noop
+}
 
 type Machine interface {
 	Continuation
@@ -76,6 +98,8 @@ type machine struct {
 	currentState MachineState
 	behavior     Behavior
 	initialState MachineState
+	observer     MachineObserver
+	mutex        sync.Mutex
 }
 
 func (m *machine) Reset() {
@@ -83,20 +107,36 @@ func (m *machine) Reset() {
 }
 
 func (m *machine) Step(input Action) (output Output, continuation Continuation, err error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	if transitions, ok := m.behavior[m.currentState]; ok {
 		if t, ok := transitions[input]; ok {
 
 			m.currentState = t.ToState
+			m.observer.OnTransition(MachineTransitionEvent{
+				Action:    input,
+				FromState: t.FromState,
+				ToState:   t.ToState,
+				Output:    t.Output,
+			})
 			return t.Output, NewContinuation(m), nil
 		}
 	}
 	return "", m, ErrNoTransition
 }
 func (m *machine) StepUnsafe(input Action) (output Output, continuation Continuation) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	if transitions, ok := m.behavior[m.currentState]; ok {
 		if t, ok := transitions[input]; ok {
 
 			m.currentState = t.ToState
+			m.observer.OnTransition(MachineTransitionEvent{
+				Action:    input,
+				FromState: t.FromState,
+				ToState:   t.ToState,
+				Output:    t.Output,
+			})
 			return t.Output, NewContinuation(m)
 		}
 	}
@@ -104,6 +144,8 @@ func (m *machine) StepUnsafe(input Action) (output Output, continuation Continua
 }
 
 func (m *machine) CanStep(input Action) bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	if transitions, ok := m.behavior[m.currentState]; ok {
 		if _, ok := transitions[input]; ok {
 			return true
@@ -113,6 +155,8 @@ func (m *machine) CanStep(input Action) bool {
 }
 
 func (m *machine) CurrentState() MachineState {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	return m.currentState
 }
 func (m *machine) GetMachine() Machine {
@@ -122,6 +166,8 @@ func (m *machine) GetName() string {
 	return m.name
 }
 func (m *machine) GetOutput() Output {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	return Output(m.currentState)
 }
 
@@ -136,7 +182,7 @@ func NewContinuation(m Machine) Continuation {
 	return continuation{machine: m}
 }
 
-func NewMachine(name string, initialState MachineState, transitions []Transition) (Machine, error) {
+func NewObservableMachine(name string, initialState MachineState, transitions []Transition, observer MachineObserver) (Machine, error) {
 	if name == "" {
 		return nil, fmt.Errorf("machine name cannot be empty")
 	}
@@ -161,7 +207,12 @@ func NewMachine(name string, initialState MachineState, transitions []Transition
 		currentState: initialState,
 		initialState: initialState,
 		behavior:     behavior,
+		observer:     observer,
 	}, nil
+}
+
+func NewMachine(name string, initialState MachineState, transitions []Transition) (Machine, error) {
+	return NewObservableMachine(name, initialState, transitions, &noopObserver{})
 }
 
 // Machine builder

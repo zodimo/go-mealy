@@ -8,3 +8,7 @@
 
 # Usage
 see demo2
+
+
+# Observable Machine
+- on transition handler
