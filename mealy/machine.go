@@ -273,7 +273,7 @@ func (m *machine) ToMermaid() string {
 	result += fmt.Sprintf("    [*] --> %s\n", m.initialState)
 
 	// Group transitions by from-state and to-state
-	transitionMap := make(map[string]map[string][]string) // fromState -> toState -> []actions
+	transitionMap := make(map[string]map[string][]string) // fromState -> toState -> []actions with outputs
 
 	// Add states and transitions
 	for fromState, actions := range m.behavior {
@@ -286,10 +286,10 @@ func (m *machine) ToMermaid() string {
 				transitionMap[fromStateStr] = make(map[string][]string)
 			}
 
-			// Add action to the appropriate transition group
+			// Add action with output to the appropriate transition group
 			transitionMap[fromStateStr][toStateStr] = append(
 				transitionMap[fromStateStr][toStateStr],
-				string(action),
+				fmt.Sprintf("%s -> %s", action, transition.Output),
 			)
 		}
 	}
