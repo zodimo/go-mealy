@@ -21,11 +21,14 @@ const (
 const (
 	Input0 mealy.Action = "0" // Represents a '0' input.
 	Input1 mealy.Action = "1" // Represents a '1' input.
+	Input2 mealy.Action = "2" // Additional input to demonstrate multiple actions
+	Input3 mealy.Action = "3" // Additional input to demonstrate multiple actions
 )
 
 func main() {
 
 	builder := mealy.NewMachineBuilder("Ones tracker")
+	// Original transitions
 	builder.AddTransition(mealy.Transition{
 		Action:    Input0,
 		FromState: StateEven,
@@ -51,6 +54,21 @@ func main() {
 		ToState:   StateEven,
 		Output:    OutputEven,
 	})
+
+	// Additional transitions to demonstrate multiple actions to the same state
+	builder.AddTransition(mealy.Transition{
+		Action:    Input2,
+		FromState: StateEven,
+		ToState:   StateEven, // Same from->to state as Input0
+		Output:    OutputEven,
+	})
+	builder.AddTransition(mealy.Transition{
+		Action:    Input3,
+		FromState: StateEven,
+		ToState:   StateEven, // Same from->to state as Input0 and Input2
+		Output:    OutputEven,
+	})
+
 	builder.SetInitialState(StateEven)
 	machine, err := builder.Build()
 	if err != nil {
@@ -61,7 +79,7 @@ func main() {
 	fmt.Printf("Initial state: %v\n", machine.CurrentState())
 
 	// Simulate a sequence of inputs.
-	inputs := []mealy.Action{Input1, Input0, Input1, Input1, Input0, Input1}
+	inputs := []mealy.Action{Input1, Input0, Input1, Input1, Input0, Input1, Input2, Input3}
 
 	// Process each input and print the results.
 	fmt.Println("Processing inputs:", inputs)
@@ -73,6 +91,5 @@ func main() {
 		} else {
 			panic("Cannot step with input " + string(input))
 		}
-
 	}
 }

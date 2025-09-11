@@ -7,7 +7,7 @@
 - transitions
 
 # Usage
-see demo2
+see playground/demo
 
 
 # Observable Machine

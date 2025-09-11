@@ -487,6 +487,101 @@ func TestMachine_ToMermaid(t *testing.T) {
 	}
 }
 
+func TestMachine_ToMermaid_MultipleActions(t *testing.T) {
+	// Create a machine with multiple actions between the same states
+	transitions := []Transition{
+		{
+			Action:    "action1",
+			FromState: "state1",
+			ToState:   "state1", // Self-transition
+			Output:    "output1",
+		},
+		{
+			Action:    "action2",
+			FromState: "state1",
+			ToState:   "state1", // Self-transition with different action
+			Output:    "output2",
+		},
+		{
+			Action:    "action3",
+			FromState: "state1",
+			ToState:   "state2",
+			Output:    "output3",
+		},
+		{
+			Action:    "action4",
+			FromState: "state2",
+			ToState:   "state1",
+			Output:    "output4",
+		},
+		{
+			Action:    "action5",
+			FromState: "state2",
+			ToState:   "state1", // Multiple actions to the same transition
+			Output:    "output5",
+		},
+	}
+
+	machine, err := NewMachine("test-multiple-actions", "state1", transitions)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	mermaid := machine.ToMermaid()
+
+	// Check for expected elements in the mermaid diagram
+	expectedElements := []string{
+		"title: test-multiple-actions",
+		"stateDiagram-v2",
+		"[*] --> state1",
+		"state1 --> state2 : action3",
+	}
+
+	// Check for self-transitions with multiple actions (order doesn't matter)
+	selfTransitionLine := "state1 --> state1 :"
+	if !strings.Contains(mermaid, selfTransitionLine) {
+		t.Errorf("ToMermaid() output doesn't contain self-transition line: %v", selfTransitionLine)
+		t.Errorf("Actual mermaid output: %v", mermaid)
+	} else {
+		// Check that both actions are present in the self-transition line
+		selfTransitionContent := extractTransitionContent(mermaid, selfTransitionLine)
+		if !strings.Contains(selfTransitionContent, "action1") || !strings.Contains(selfTransitionContent, "action2") {
+			t.Errorf("Self-transition line doesn't contain both actions. Line content: %v", selfTransitionContent)
+		}
+	}
+
+	// Check for state2->state1 transitions with multiple actions (order doesn't matter)
+	multiTransitionLine := "state2 --> state1 :"
+	if !strings.Contains(mermaid, multiTransitionLine) {
+		t.Errorf("ToMermaid() output doesn't contain multi-action transition line: %v", multiTransitionLine)
+		t.Errorf("Actual mermaid output: %v", mermaid)
+	} else {
+		// Check that both actions are present in the multi-action transition line
+		multiTransitionContent := extractTransitionContent(mermaid, multiTransitionLine)
+		if !strings.Contains(multiTransitionContent, "action4") || !strings.Contains(multiTransitionContent, "action5") {
+			t.Errorf("Multi-action transition line doesn't contain both actions. Line content: %v", multiTransitionContent)
+		}
+	}
+
+	for _, expected := range expectedElements {
+		if !strings.Contains(mermaid, expected) {
+			t.Errorf("ToMermaid() output doesn't contain expected element: %v", expected)
+			t.Errorf("Actual mermaid output: %v", mermaid)
+		}
+	}
+}
+
+// Helper function to extract the content after a transition line prefix
+func extractTransitionContent(mermaid, linePrefix string) string {
+	lines := strings.Split(mermaid, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, linePrefix) {
+			return strings.TrimSpace(strings.Split(line, ":")[1])
+		}
+	}
+	return ""
+}
+
 func TestMachineBuilder(t *testing.T) {
 	builder := NewMachineBuilder("test-builder-machine")
 

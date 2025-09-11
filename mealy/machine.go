@@ -3,6 +3,7 @@ package mealy
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -270,12 +271,38 @@ func (m *machine) ToMermaid() string {
 	result := fmt.Sprintf("%s stateDiagram-v2\n", titleString)
 
 	result += fmt.Sprintf("    [*] --> %s\n", m.initialState)
+
+	// Group transitions by from-state and to-state
+	transitionMap := make(map[string]map[string][]string) // fromState -> toState -> []actions
+
 	// Add states and transitions
 	for fromState, actions := range m.behavior {
 		for action, transition := range actions {
-			result += fmt.Sprintf("    %s --> %s : %s\n", fromState, transition.ToState, action)
+			fromStateStr := string(fromState)
+			toStateStr := string(transition.ToState)
+
+			// Initialize maps if they don't exist
+			if transitionMap[fromStateStr] == nil {
+				transitionMap[fromStateStr] = make(map[string][]string)
+			}
+
+			// Add action to the appropriate transition group
+			transitionMap[fromStateStr][toStateStr] = append(
+				transitionMap[fromStateStr][toStateStr],
+				string(action),
+			)
 		}
 	}
+
+	// Generate diagram with grouped actions
+	for fromState, toStates := range transitionMap {
+		for toState, actions := range toStates {
+			// Join all actions with a comma and space
+			actionsStr := strings.Join(actions, ", ")
+			result += fmt.Sprintf("    %s --> %s : %s\n", fromState, toState, actionsStr)
+		}
+	}
+
 	return result
 }
 
